@@ -56,6 +56,12 @@ func health(dst string) bool {
 	return true
 }
 
+func hash(path string) uint32 {
+	h := sha256.New()
+	h.Write([]byte(path))
+	return binary.BigEndian.Uint32(h.Sum(nil))
+}
+
 func forward(dst string, rw http.ResponseWriter, r *http.Request) error {
 	ctx, _ := context.WithTimeout(r.Context(), timeout)
 	fwdRequest := r.Clone(ctx)
@@ -129,9 +135,7 @@ func main() {
 	updateHealthServersList()
 
 	frontend := httptools.CreateServer(*port, http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		h := sha256.New()
-		h.Write([]byte(r.URL.Path))
-		urlHash := binary.BigEndian.Uint32(h.Sum(nil))
+		urlHash := hash(r.URL.Path)
 		serverIndex := urlHash % uint32(len(serversPool))
 		serverIndex = checkServerAvailability(serverIndex)
 
