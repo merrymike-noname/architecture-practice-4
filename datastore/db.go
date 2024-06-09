@@ -51,22 +51,11 @@ type Db struct {
 	keyPositions     chan *KeyPosition
 	putOps           chan PutOp
 	putDone          chan error
-	getOps           chan GetOp
 
 	index     hashIndex
 	segments  []*Segment
 	indexLock sync.Mutex
 	fileLock  sync.Mutex
-}
-
-type GetOp struct {
-	key  string
-	resp chan getResponse
-}
-
-type getResponse struct {
-	value string
-	err   error
 }
 
 var (
@@ -83,7 +72,6 @@ func NewDb(dir string, segmentSize int64) (*Db, error) {
 		keyPositions: make(chan *KeyPosition),
 		putOps:       make(chan PutOp),
 		putDone:      make(chan error),
-		getOps:       make(chan GetOp),
 	}
 
 	if err := db.createSegment(); err != nil {
@@ -96,7 +84,6 @@ func NewDb(dir string, segmentSize int64) (*Db, error) {
 
 	go db.IndexRoutine()
 	go db.PutRoutine()
-	go db.GetRoutine()
 
 	return db, nil
 }
@@ -151,18 +138,6 @@ func (db *Db) PutRoutine() {
 		}
 		op.resp <- nil
 		db.fileLock.Unlock()
-	}
-}
-
-func (db *Db) GetRoutine() {
-	for op := range db.getOps {
-		keyPos := db.getPosition(op.key)
-		if keyPos == nil {
-			op.resp <- getResponse{"", ErrNotFound}
-			continue
-		}
-		value, err := keyPos.segment.getFromSegment(keyPos.position)
-		op.resp <- getResponse{value, err}
 	}
 }
 
@@ -333,13 +308,15 @@ func (db *Db) getLastSegment() *Segment {
 }
 
 func (db *Db) Get(key string) (string, error) {
-	resp := make(chan getResponse)
-	db.getOps <- GetOp{
-		key:  key,
-		resp: resp,
+	keyPos := db.getPosition(key)
+	if keyPos == nil {
+		return "", ErrNotFound
 	}
-	result := <-resp
-	return result.value, result.err
+	value, err := keyPos.segment.getFromSegment(keyPos.position)
+	if err != nil {
+		return "", err
+	}
+	return value, nil
 }
 
 func (db *Db) Put(key, value string) error {
