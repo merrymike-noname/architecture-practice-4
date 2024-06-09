@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,6 +10,13 @@ import (
 )
 
 const baseAddress = "http://balancer:8090"
+
+const name = "lasthope"
+
+type ResponseBody struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
 
 var client = http.Client{
 	Timeout: 3 * time.Second,
@@ -47,6 +55,25 @@ func TestBalancer(t *testing.T) {
 
 	if servers[0] != servers[2] {
 		t.Errorf("Requests to the same endpoint were routed to different servers: got %s and %s", servers[0], servers[2])
+	}
+
+	db, err := client.Get(fmt.Sprintf("%s/api/v1/some-data?key=%s", baseAddress, name))
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Body.Close()
+
+	var body ResponseBody
+	err = json.NewDecoder(db.Body).Decode(&body)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if body.Key != name {
+		t.Errorf("Expected key to be '%s', got '%s'", name, body.Key)
+	}
+	if body.Value == "" {
+		t.Error("Expected non-empty value")
 	}
 }
 
