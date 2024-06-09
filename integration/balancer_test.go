@@ -11,7 +11,7 @@ import (
 
 const baseAddress = "http://balancer:8090"
 
-const name = "merrymike-noname"
+const name = "lasthope"
 
 type ResponseBody struct {
 	Key   string `json:"key"`
