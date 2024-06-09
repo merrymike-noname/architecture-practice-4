@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -133,7 +135,7 @@ func main() {
 	server.Start()
 
 	buff := new(bytes.Buffer)
-	body := Request{Value: time.Now().Format(time.RFC3339)}
+	body := RequestBody{Value: time.Now().Format(time.RFC3339)}
 	json.NewEncoder(buff).Encode(body)
 
 	res, _ := client.Post(fmt.Sprintf("%s/merrymike-noname", url), "application/json", buff)
